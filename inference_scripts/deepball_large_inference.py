@@ -81,7 +81,7 @@ def run_inference(weights, input_path):
         input_tensor = preprocess_frame(frame).unsqueeze(0).to(device)
 
         # Ensure input tensor has the correct shape
-        print(f"Input tensor shape: {input_tensor.shape}")
+        # print(f"Input tensor shape: {input_tensor.shape}")
 
         # Perform inference
         with torch.no_grad():

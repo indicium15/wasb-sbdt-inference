@@ -96,38 +96,39 @@ def run_inference(weights, input_path):
 
         input_tensor = torch.cat([frame1, frame2, frame3], dim=0).unsqueeze(0).to(device)
 
-        # Ensure input tensor has the correct shape
-        print(f"Input tensor shape: {input_tensor.shape}")
+        # print(f"Input tensor shape: {input_tensor.shape}")
 
         # Perform inference
         with torch.no_grad():
             output = model(input_tensor)[0]  # Get the raw logits
 
-        # Post-process the output
-        output = torch.sigmoid(output)  # Apply sigmoid to the output to get probabilities
-        segmentation_map = output.squeeze().cpu().numpy()
-        segmentation_map = (segmentation_map > 0.5).astype(np.uint8)  # Apply threshold to get binary map
-        segmentation_map = cv2.resize(segmentation_map, (width, height), interpolation=cv2.INTER_NEAREST)
+        for i in range(config['frames_out']):
+            output = outputs[0][i]
+            # Post-process the output
+            output = torch.sigmoid(output)  # Apply sigmoid to the output to get probabilities
+            segmentation_map = output.squeeze().cpu().numpy()
+            segmentation_map = (segmentation_map > 0.5).astype(np.uint8)  # Apply threshold to get binary map
+            segmentation_map = cv2.resize(segmentation_map, (width, height), interpolation=cv2.INTER_NEAREST)
 
-        # Find coordinates of the tennis ball
-        ball_coords = np.column_stack(np.where(segmentation_map == 1))
-        if ball_coords.size > 0:
-            center_x = np.mean(ball_coords[:, 1])
-            center_y = np.mean(ball_coords[:, 0])
-            coordinates.append([frame_number, 1, center_x, center_y])
+            # Find coordinates of the tennis ball
+            ball_coords = np.column_stack(np.where(segmentation_map == 1))
+            if ball_coords.size > 0:
+                center_x = np.mean(ball_coords[:, 1])
+                center_y = np.mean(ball_coords[:, 0])
+                coordinates.append([frame_number, 1, center_x, center_y])
 
-            # Draw a circle on the detected ball
-            cv2.circle(frame, (int(center_x), int(center_y)), 10, (0, 255, 0), 2)
-        else:
-            coordinates.append([frame_number, 0, 0, 0])
-        # Write the frame to the output video
-        out.write(frame)
-        frame_number += 1
+                # Draw a circle on the detected ball
+                cv2.circle(frame, (int(center_x), int(center_y)), 10, (0, 255, 0), 2)
+            else:
+                coordinates.append([frame_number, 0, 0, 0])
+            # Write the frame to the output video
+            out.write(frame)
+            frame_number += 1
 
-        # Optional: Display the frame
-        cv2.imshow("Frame", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            # Optional: Display the frame
+            cv2.imshow("Frame", frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
     # Release everything if job is finished
     cap.release()

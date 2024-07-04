@@ -24,7 +24,7 @@ def run_inference(weights, input_path):
         "model_path": f"model_weights/tracknetv2_{weights}_best.pth.tar",  # Update with your model path
     }
 
-    device = torch.device('cuda' if torch.cuda.is_available else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Define the transformation to preprocess the frames
     transform = transforms.Compose([
@@ -37,7 +37,6 @@ def run_inference(weights, input_path):
     # Function to preprocess frames
     def preprocess_frame(frame):
         frame = transform(frame)
-        frame = frame.unsqueeze(0)  # Add batch dimension
         return frame
 
     # Load the model and weights
@@ -79,28 +78,26 @@ def run_inference(weights, input_path):
             frames_buffer.pop(0)
 
         # Preprocess the frames
-        input_frames = [preprocess_frame(f) for f in frames_buffer]
-        input_tensor = torch.cat(input_frames, dim=1).to(device)  # Combine frames along the channel dimension
+        frame1 = preprocess_frame(frames_buffer[0])
+        frame2 = preprocess_frame(frames_buffer[1])
+        frame3 = preprocess_frame(frames_buffer[2])
+
+        input_tensor = torch.cat([frame1, frame2, frame3], dim=0).unsqueeze(0).to(device)  # Combine frames along the channel dimension
 
         # Perform inference
         with torch.no_grad():
-            output = model(input_tensor)[0]
+            outputs = model(input_tensor)[0]
         
-        # Debugging: Check the output logits
-        print(f"Logits shape: {output.shape}")
-        print(f"Logits min: {output.min().item()}, max: {output.max().item()}")
-        output = torch.sigmoid(output)  # Apply sigmoid to the output to get probabilities
-        output_np = output.squeeze().cpu().numpy()
-
-        # Handle the 3-frame output
-        for frame_idx in range(config['frames_out']):
-            segmentation_map = output_np[frame_idx]
+        for i in range(config['frames_out']):
+            output = outputs[0][i]
+            output = torch.sigmoid(output)
+            segmentation_map = output.squeeze().cpu().numpy()
             segmentation_map = (segmentation_map > 0.5).astype(np.uint8)  # Apply threshold to get binary map
             segmentation_map = cv2.resize(segmentation_map, (width, height), interpolation=cv2.INTER_NEAREST)
 
             # Debugging: Check the segmentation map
-            print(f"Segmentation map shape: {segmentation_map.shape}")
-            print(f"Segmentation map unique values: {np.unique(segmentation_map)}")
+            # print(f"Segmentation map shape: {segmentation_map.shape}")
+            # print(f"Segmentation map unique values: {np.unique(segmentation_map)}")
 
             # Find coordinates of the tennis ball
             ball_coords = np.column_stack(np.where(segmentation_map == 1))
@@ -115,13 +112,12 @@ def run_inference(weights, input_path):
                 coordinates.append([frame_number, 0, 0, 0])
             # Write the frame to the output video
             out.write(frame)
+            frame_number += 1
 
-        frame_number += 1
-
-        # Optional: Display the frame
-        cv2.imshow("Frame", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            # Optional: Display the frame
+            cv2.imshow("Frame", frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
     # Release everything if job is finished
     cap.release()
