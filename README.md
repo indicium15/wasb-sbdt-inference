@@ -27,20 +27,14 @@ Install the required packages using `pip install -r requirements.txt`.
 
 The main script, main.py, can be executed from the command line with the following options:
 
---weights: Specify the weights to use (tennis, badminton, football).
---model: Specify the model to use (deepball, deepball-large, ballseg, monotrack, restracknetv2, tracknetv2, wasb).
---input: Specify the input file path.
-
-## Example Command
-```
-python main.py --weights tennis --model deepball --input path/to/input/video.mp4
-```
-
-## Options
 1. weights: Choose between tennis, badminton and football.
 2. model: Select one of the supported models.
 3. input: Provide the path to the input video file.
 
+## Example Usage
+```
+python main.py --weights tennis --model deepball --input path/to/input/video.mp4
+```
 ## Directory Structure
 ```
 wasb-sbdt-inference/
@@ -65,9 +59,15 @@ wasb-sbdt-inference/
 │   └── wasb_inference.py
 └── model_weights/
     └── badminton_wasb_best.pth.tar
+    └── other_model_weights.pth.tar
 ```
+
 ## Model Weights
 Place your model weights in the model_weights directory. The script will automatically select the correct weight file based on the specified --weights and --model options.
 
 ## GPU Support
 The scripts will utilize CUDA for inference if available. If CUDA is not available, the scripts will fall back to using the CPU.
+
+## TODO
+- [ ] Add batching to improve inference speeds
+- [ ] Implement suggested inference techniques to improve the model performance. Refer to the paper [here](https://arxiv.org/pdf/2311.05237#subsection.3.3) to get a better understanding of this.

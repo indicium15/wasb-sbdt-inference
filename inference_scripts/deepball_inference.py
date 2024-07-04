@@ -4,7 +4,7 @@ import torch
 import torchvision.transforms as transforms
 import numpy as np
 import pandas as pd
-from model_definitions.deepball import DeepBall  # Replace 'deepball' with the actual file name
+from model_definitions.deepball import DeepBall  
 
 def run_inference(weights, input_path):
     # Configuration parameters

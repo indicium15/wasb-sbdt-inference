@@ -4,7 +4,7 @@ import torch
 import torchvision.transforms as transforms
 import numpy as np
 import pandas as pd
-from model_definitions.monotrack import MonoTrack  # Replace 'monotrack' with the actual file name
+from model_definitions.monotrack import MonoTrack
 
 def run_inference(weights, input_path):
     # Configuration parameters
@@ -48,7 +48,7 @@ def run_inference(weights, input_path):
     model.eval()  # Set model to evaluation mode
 
     # Open the video file
-    cap = cv2.VideoCapture(config['video_path'])
+    cap = cv2.VideoCapture(input_path)
 
     # Get video properties
     fps = int(cap.get(cv2.CAP_PROP_FPS))
