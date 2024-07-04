@@ -96,8 +96,8 @@ def run_inference(weights, input_path):
         segmentation_map = output.squeeze().cpu().numpy()
         segmentation_map = (segmentation_map > 0.25).astype(np.uint8)  # Apply threshold to get binary map
         segmentation_map = cv2.resize(segmentation_map, (width, height), interpolation=cv2.INTER_NEAREST)
-        print(f"Segmentation map shape: {segmentation_map.shape}")
-        print(f"Segmentation map unique values: {np.unique(segmentation_map)}")
+        # print(f"Segmentation map shape: {segmentation_map.shape}")
+        # print(f"Segmentation map unique values: {np.unique(segmentation_map)}")
 
         # Find coordinates of the tennis ball
         ball_coords = np.column_stack(np.where(segmentation_map == 1))

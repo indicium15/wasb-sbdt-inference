@@ -92,11 +92,11 @@ def run_inference(weights, input_path):
 
         # Perform inference
         with torch.no_grad():
-            output = model(input_tensor)[0]  # Get the raw logits
+            outputs = model(input_tensor)[0]  # Get the raw logits
 
         for i in range(config['frames_out']):
             output = outputs[0][i]
-            ouptut = torch.sigmoid(ouptut)
+            output = torch.sigmoid(output)
 
             # Post-process the output
             segmentation_map = output.squeeze().cpu().numpy()
