@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from model_definitions.tracknet2 import TrackNetV2  
 
-def run_inference(weights, input_path):
+def run_inference(weights, input_path, overlay=False):
     # Configuration parameters
     config = {
         "name": "tracknetv2",

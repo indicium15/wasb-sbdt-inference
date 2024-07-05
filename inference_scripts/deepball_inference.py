@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from model_definitions.deepball import DeepBall  
 
-def run_inference(weights, input_path):
+def run_inference(weights, input_path, overlay=False):
     # Configuration parameters
     config = {
         "name": "deepball",

@@ -29,6 +29,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run inference on different models with specified weights and input type.")
     parser.add_argument("--weights", type=str, choices=["tennis", "badminton", "soccer"], required=True, help="Specify the weights to use: 'tennis' or 'badminton' or 'soccer'.")
     parser.add_argument("--model", type=str, choices=list(MODEL_INFERENCE_MAP.keys()), required=True, help="Specify the model to use.")
+    parser.add_argument('--overlay', action='store_true', help='Overlay heatmap on the original frame')     
     parser.add_argument("--input", type=str, required=True, help="Specify the input file or folder.")
     #TODO: add threshold, visualize_output flags
 
@@ -43,7 +44,7 @@ def main():
     inference_function = MODEL_INFERENCE_MAP[args.model]
 
     # Run the selected inference function with the provided arguments
-    inference_function(weights=args.weights, input_path=args.input)
+    inference_function(weights=args.weights, input_path=args.input, overlay=args.overlay)
 
 if __name__ == "__main__":
     main()

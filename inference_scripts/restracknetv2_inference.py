@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from model_definitions.restracknetv2 import ResTrackNetV2 
 
-def run_inference(weights, input_path):
+def run_inference(weights, input_path, overlay=False):
     # Configuration parameters
     config = {
         "name": "restracknetv2",
@@ -100,7 +100,7 @@ def run_inference(weights, input_path):
 
         # Perform inference
         with torch.no_grad():
-            output = model(input_tensor)[0]  # Get the raw logits
+            outputs = model(input_tensor)[0]  # Get the raw logits
 
         for i in range(config['frames_out']):
             output = outputs[0][i]
