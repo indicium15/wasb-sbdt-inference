@@ -6,6 +6,19 @@ import numpy as np
 import pandas as pd
 from model_definitions.monotrack import MonoTrack
 
+def preprocess_frame(frame, transform):
+    return transform(frame)
+
+def predict_ball_position(prev_positions, width, height):
+    if len(prev_positions) < 3:
+        return None
+    p_t = prev_positions[-1]
+    a_t = p_t - 2 * prev_positions[-2] + prev_positions[-3]
+    v_t = p_t - prev_positions[-2] + a_t
+    predicted_position = p_t + v_t + 0.5 * a_t
+    predicted_position = np.clip(predicted_position, [0, 0], [width, height])
+    return predicted_position
+
 def run_inference(weights, input_path, overlay=False):
     # Configuration parameters
     config = {
@@ -24,7 +37,7 @@ def run_inference(weights, input_path, overlay=False):
         "model_path": f"model_weights/monotrack_{weights}_best.pth.tar",  # Update with your model path
     }
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
 
     # Define the transformation to preprocess the frames
     transform = transforms.Compose([

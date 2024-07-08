@@ -1,5 +1,5 @@
 /model_weights/*.pth.tar
 /test_videos
-/inference_scipts/__pycache__/*
-/model_definitions/__pycache__/*
+/inference_scipts/__pycache__/*.pyc
+/model_definitions/__pycache__/*.pyc
 /venv
