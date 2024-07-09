@@ -30,10 +30,11 @@ The main script, main.py, can be executed from the command line with the followi
 1. weights: Choose between tennis, badminton and football.
 2. model: Select one of the supported models.
 3. input: Provide the path to the input video file.
+4. overlay (optional): Display the detected blobs for verifying center-of-heatmap tracking. 
 
 ## Example Usage
 ```
-python main.py --weights tennis --model deepball --input path/to/input/video.mp4
+python main.py --weights tennis --model deepball --input path/to/input/video.mp4 --overlay
 ```
 ## Directory Structure
 ```
@@ -69,5 +70,16 @@ Place your model weights in the model_weights directory. The script will automat
 The scripts will utilize CUDA for inference if available. If CUDA is not available, the scripts will fall back to using the CPU.
 
 ## TODO
+- [x] Implement suggested inference techniques to improve the model performance. Refer to the paper [here](https://arxiv.org/pdf/2311.05237#subsection.3.3) to get a better understanding of this.
 - [ ] Add batching to improve inference speeds
-- [ ] Implement suggested inference techniques to improve the model performance. Refer to the paper [here](https://arxiv.org/pdf/2311.05237#subsection.3.3) to get a better understanding of this.
+
+## Citation
+If you find this work useful, please consider to cite the original WASB-SBDT paper:
+```
+@inproceedings{tarashima2023wasb,
+	title={Widely Applicable Strong Baseline for Sports Ball Detection and Tracking},
+	author={Tarashima, Shuhei and Haq, Muhammad Abdul and Wang, Yushan and Tagawa, Norio},
+	booktitle={BMVC},
+	year={2023}
+}
+```
