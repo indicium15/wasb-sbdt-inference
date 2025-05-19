@@ -5,6 +5,7 @@ import torchvision.transforms as transforms
 import numpy as np
 import pandas as pd
 from model_definitions.wasb import HRNet
+from tqdm import tqdm
 
 def preprocess_frame(frame, transform):
     return transform(frame)
@@ -97,13 +98,14 @@ def run_inference(weights, input_path, overlay=False):
 
     cap = cv2.VideoCapture(input_path)
 
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     base_name = os.path.splitext(os.path.basename(input_path))[0]
-    output_video_path = os.path.join(os.path.dirname(input_path), f"{base_name}_output_wasb.mp4")
-    output_csv_path = os.path.join(os.path.dirname(input_path), f"{base_name}_output_wasb.csv")
+    output_video_path = os.path.join(r"C:\Users\user\GitHub\wasb-sbdt-inference\output\video", f"{base_name}_output_wasb.mp4")
+    output_csv_path = os.path.join(r"C:\Users\user\GitHub\wasb-sbdt-inference\output\csv", f"{base_name}_output_wasb.csv")
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
@@ -113,7 +115,99 @@ def run_inference(weights, input_path, overlay=False):
     frames_buffer = []
     prev_positions = []
 
-    while True:
+    # while True:
+    #     ret, frame = cap.read()
+    #     if not ret:
+    #         break
+    #
+    #     # Calculate % complete
+    #     current_frame = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+    #     print(f"Frame: {current_frame}/{total_frames} ({(current_frame / total_frames) * 100 if total_frames > 0 else 0:.2f}%)")
+    #
+    #     frames_buffer.append(frame)
+    #     if len(frames_buffer) == config['frames_in']:
+    #         # Preprocess the frames
+    #         frames_processed = [preprocess_frame(f, transform) for f in frames_buffer]
+    #         input_tensor = torch.cat(frames_processed, dim=0).unsqueeze(0).to(device)
+    #
+    #         # Perform inference
+    #         with torch.no_grad():
+    #             outputs = model(input_tensor)[0]  # Get the raw logits
+    #
+    #         detected = False
+    #         center_x, center_y, confidence = 0, 0, 0
+    #
+    #         for i in range(config['frames_out']):
+    #             output = outputs[0][i]
+    #             # Post-process the output
+    #             output = torch.sigmoid(output)  # Apply sigmoid to the output to get probabilities
+    #             heatmap = output.squeeze().cpu().numpy()
+    #             heatmap = cv2.resize(heatmap, (width, height), interpolation=cv2.INTER_LINEAR)
+    #             heatmap = (heatmap > 0.5).astype(np.float32) * heatmap
+    #
+    #             if overlay:
+    #                 heatmap_normalized_visualization = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX)
+    #                 heatmap_normalized_visualization = heatmap_normalized_visualization.astype(np.uint8)
+    #                 # Apply color map to the heatmap
+    #                 heatmap_colored = cv2.applyColorMap(heatmap_normalized_visualization, cv2.COLORMAP_JET)
+    #                 # Overlay the heatmap on the original frame
+    #                 overlayed_frame = cv2.addWeighted(frames_buffer[i], 0.6, heatmap_colored, 0.4, 0)
+    #
+    #             # Find connected components
+    #             num_labels, labels_im, stats, centroids = cv2.connectedComponentsWithStats((heatmap > 0).astype(np.uint8), connectivity=8)
+    #
+    #             # Calculate centers of blobs
+    #             blob_centers = []
+    #             for j in range(1, num_labels):  # Skip the background label 0
+    #                 mask = labels_im == j
+    #                 blob_sum = heatmap[mask].sum()
+    #                 if blob_sum > 0:
+    #                     center_x = np.sum(np.where(mask)[1] * heatmap[mask]) / blob_sum
+    #                     center_y = np.sum(np.where(mask)[0] * heatmap[mask]) / blob_sum
+    #                     blob_centers.append((center_x, center_y, blob_sum))
+    #
+    #             if blob_centers:
+    #                 predicted_position = predict_ball_position(prev_positions, width, height)
+    #                 if predicted_position is not None:
+    #                     # Select the blob closest to the predicted position
+    #                     distances = [np.sqrt((x - predicted_position[0]) ** 2 + (y - predicted_position[1]) ** 2) for x, y, _ in blob_centers]
+    #                     closest_blob_idx = np.argmin(distances)
+    #                     center_x, center_y, confidence = blob_centers[closest_blob_idx]
+    #                 else:
+    #                     # Select the blob with the highest confidence if no prediction is available
+    #                     blob_centers.sort(key=lambda x: x[2], reverse=True)
+    #                     center_x, center_y, confidence = blob_centers[0]
+    #                 detected = True
+    #                 prev_positions.append(np.array([center_x, center_y]))
+    #                 if len(prev_positions) > 3:
+    #                     prev_positions.pop(0)
+    #
+    #             # Draw a circle on the detected ball
+    #             if detected:
+    #                 if overlay:
+    #                     cv2.circle(overlayed_frame, (int(center_x), int(center_y)), 10, (0, 255, 0), 2)
+    #                 else:
+    #                     cv2.circle(frames_buffer[i], (int(center_x), int(center_y)), 10, (0, 255, 0), 2)
+    #
+    #             # Write the frame to the output video and save the coordinates
+    #             out.write(overlayed_frame if overlay else frames_buffer[0])
+    #             if detected:
+    #                 coordinates.append([frame_number, 1, center_x, center_y, confidence])
+    #             else:
+    #                 coordinates.append([frame_number, 0, 0, 0, 0])
+    #
+    #             # if overlay:
+    #             #     cv2.imshow("Frame", overlayed_frame)
+    #             # else:
+    #             #     cv2.imshow("Frame", frames_buffer[0])
+    #
+    #             if cv2.waitKey(1) & 0xFF == ord('q'):
+    #                 break
+    #
+    #             frame_number += 1
+    #         frames_buffer = []  # Clear the buffer for the next set of frames
+
+    for _ in tqdm(range(total_frames), desc="Processing frames", unit="frame"):
         ret, frame = cap.read()
         if not ret:
             break
@@ -133,8 +227,7 @@ def run_inference(weights, input_path, overlay=False):
 
             for i in range(config['frames_out']):
                 output = outputs[0][i]
-                # Post-process the output
-                output = torch.sigmoid(output)  # Apply sigmoid to the output to get probabilities
+                output = torch.sigmoid(output)
                 heatmap = output.squeeze().cpu().numpy()
                 heatmap = cv2.resize(heatmap, (width, height), interpolation=cv2.INTER_LINEAR)
                 heatmap = (heatmap > 0.5).astype(np.float32) * heatmap
@@ -142,17 +235,13 @@ def run_inference(weights, input_path, overlay=False):
                 if overlay:
                     heatmap_normalized_visualization = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX)
                     heatmap_normalized_visualization = heatmap_normalized_visualization.astype(np.uint8)
-                    # Apply color map to the heatmap
                     heatmap_colored = cv2.applyColorMap(heatmap_normalized_visualization, cv2.COLORMAP_JET)
-                    # Overlay the heatmap on the original frame
                     overlayed_frame = cv2.addWeighted(frames_buffer[i], 0.6, heatmap_colored, 0.4, 0)
 
-                # Find connected components
                 num_labels, labels_im, stats, centroids = cv2.connectedComponentsWithStats((heatmap > 0).astype(np.uint8), connectivity=8)
 
-                # Calculate centers of blobs
                 blob_centers = []
-                for j in range(1, num_labels):  # Skip the background label 0
+                for j in range(1, num_labels):
                     mask = labels_im == j
                     blob_sum = heatmap[mask].sum()
                     if blob_sum > 0:
@@ -163,12 +252,10 @@ def run_inference(weights, input_path, overlay=False):
                 if blob_centers:
                     predicted_position = predict_ball_position(prev_positions, width, height)
                     if predicted_position is not None:
-                        # Select the blob closest to the predicted position
                         distances = [np.sqrt((x - predicted_position[0]) ** 2 + (y - predicted_position[1]) ** 2) for x, y, _ in blob_centers]
                         closest_blob_idx = np.argmin(distances)
                         center_x, center_y, confidence = blob_centers[closest_blob_idx]
                     else:
-                        # Select the blob with the highest confidence if no prediction is available
                         blob_centers.sort(key=lambda x: x[2], reverse=True)
                         center_x, center_y, confidence = blob_centers[0]
                     detected = True
@@ -176,30 +263,23 @@ def run_inference(weights, input_path, overlay=False):
                     if len(prev_positions) > 3:
                         prev_positions.pop(0)
 
-                # Draw a circle on the detected ball
                 if detected:
                     if overlay:
                         cv2.circle(overlayed_frame, (int(center_x), int(center_y)), 10, (0, 255, 0), 2)
                     else:
                         cv2.circle(frames_buffer[i], (int(center_x), int(center_y)), 10, (0, 255, 0), 2)
 
-                # Write the frame to the output video and save the coordinates
                 out.write(overlayed_frame if overlay else frames_buffer[0])
                 if detected:
                     coordinates.append([frame_number, 1, center_x, center_y, confidence])
                 else:
                     coordinates.append([frame_number, 0, 0, 0, 0])
 
-                if overlay:
-                    cv2.imshow("Frame", overlayed_frame)
-                else:
-                    cv2.imshow("Frame", frames_buffer[0])
-
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
-                frame_number += 1  
-            frames_buffer = []  # Clear the buffer for the next set of frames
+                frame_number += 1
+            frames_buffer = []
 
     # Release everything if job is finished
     cap.release()
@@ -207,8 +287,9 @@ def run_inference(weights, input_path, overlay=False):
     cv2.destroyAllWindows()
 
     # Save coordinates to CSV file
-    coordinates_df = pd.DataFrame(coordinates, columns=["frame_number", "detected", "x", "y", "confidence (blob size)"])
+    coordinates_df = pd.DataFrame(coordinates, columns=["frame_number", "detected", "shuttle_x", "shuttle_y", "confidence (blob size)"])
     coordinates_df.to_csv(output_csv_path, index=False)
 
+
 # Example usage:
-# run_inference(weights='example_weights', input_path='example_video.mp4', overlay=True)
+# run_inference(weights="badminton", input_path="/input/YONEX German Open 2023_SF_TV1_LISF_MOMOTAK_trimmed.mp4", overlay=True)

@@ -1,5 +1,5 @@
 # Example Usage
-# python main.py --weights tennis --model deepball --input path/to/input/video.mp4
+# python main.py --weights badminton --model wasb --input path/to/input/video.mp4 --overlay
 
 import argparse
 import os
@@ -44,6 +44,7 @@ def main():
     inference_function = MODEL_INFERENCE_MAP[args.model]
 
     # Run the selected inference function with the provided arguments
+    print(f"Running inference for {args.input}")
     inference_function(weights=args.weights, input_path=args.input, overlay=args.overlay)
 
 if __name__ == "__main__":
