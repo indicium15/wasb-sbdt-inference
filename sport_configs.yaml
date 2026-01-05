@@ -1,0 +1,32 @@
+# Sport-Specific Parameter Defaults for WASB Inference
+# These defaults are automatically applied based on the --weights argument
+# Command-line arguments always override these defaults
+
+# Badminton: Fast, sharp movements, smaller court
+badminton:
+  gate_px: 80.0      # Gating threshold in pixels for online tracking
+  thr: 0.5           # Heatmap threshold for blob detection
+  step: 3            # Step size: 1 for oversampling, 3 for non-overlapping windows
+  batch_windows: 8   # Batch size for window processing
+
+# Tennis: Larger court, similar speed to badminton
+tennis:
+  gate_px: 110.0     # Larger court requires more tolerance for tracking
+  thr: 0.55          # Higher threshold to reduce false positives from court lines
+  step: 3
+  batch_windows: 8
+
+# Soccer: Very large field, slower ball movement
+soccer:
+  gate_px: 135.0     # Large field requires wider gating threshold
+  thr: 0.42          # Lower threshold due to ball size and field complexity
+  step: 3
+  batch_windows: 8
+
+# Basketball: Fast, close-up, good contrast
+basketball:
+  gate_px: 70.0      # Smaller court, tighter tracking
+  thr: 0.52          # Slightly higher threshold due to good contrast
+  step: 3
+  batch_windows: 8
+

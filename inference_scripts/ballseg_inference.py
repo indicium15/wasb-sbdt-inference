@@ -4,22 +4,12 @@ import torch
 import torchvision.transforms as transforms
 import numpy as np
 import pandas as pd
-from model_definitions.ballseg import BallSeg  
+from model_definitions.ballseg import BallSeg
 
-def preprocess_frame(frame, transform):
-    return transform(frame)
+from inference_scripts.sbdt_infer_utils import bgr_to_rgb, extract_blob_candidates_coh, select_with_gating_maxconf
 
-def predict_ball_position(prev_positions, width, height):
-    if len(prev_positions) < 3:
-        return None
-    p_t = prev_positions[-1]
-    a_t = p_t - 2 * prev_positions[-2] + prev_positions[-3]
-    v_t = p_t - prev_positions[-2] + a_t
-    predicted_position = p_t + v_t + 0.5 * a_t
-    predicted_position = np.clip(predicted_position, [0, 0], [width, height])
-    return predicted_position
 
-def run_inference(weights, input_path, overlay=False):
+def run_inference(weights, input_path, overlay=False, thr=0.5):
     # Configuration parameters
     config = {
         "name": "ballseg",
@@ -33,7 +23,7 @@ def run_inference(weights, input_path, overlay=False):
         "out_width": 1024,
         "backbone": "resnet18",
         "scale_factors": [1, 1, 0.5],
-        "model_path": f"model_weights/ballseg_{weights}_best.pth.tar",  # Update with your model path
+        "model_path": f"model_weights/ballseg_{weights}_best.pth.tar",
     }
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -47,10 +37,15 @@ def run_inference(weights, input_path, overlay=False):
     ])
 
     # Load the model and weights
-    model = BallSeg(nclass=1, backbone=config['backbone'], in_channels=6 if config['rgb_diff'] else 3, scale_factors=config['scale_factors']).to(device)
+    model = BallSeg(
+        nclass=1,
+        backbone=config['backbone'],
+        in_channels=6 if config['rgb_diff'] else 3,
+        scale_factors=config['scale_factors']
+    ).to(device)
     checkpoint = torch.load(config['model_path'], map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'], strict=True)
-    model.eval()  # Set model to evaluation mode
+    model.eval()
 
     # Open the video file
     cap = cv2.VideoCapture(input_path)
@@ -83,53 +78,62 @@ def run_inference(weights, input_path, overlay=False):
 
         if len(frames_buffer) > config['frames_in']:
             frames_buffer.pop(0)
-        
-        frame1 = preprocess_frame(frames_buffer[0], transform)
-        frame2 = preprocess_frame(frames_buffer[1], transform)
-        frame_diff = preprocess_frame(cv2.absdiff(frames_buffer[1], frames_buffer[0]), transform)
+
+        # BGR->RGB conversion for preprocessing
+        frame1_rgb = bgr_to_rgb(frames_buffer[0])
+        frame2_rgb = bgr_to_rgb(frames_buffer[1])
+        frame_diff = cv2.absdiff(frames_buffer[1], frames_buffer[0])
+        frame_diff_rgb = bgr_to_rgb(frame_diff)
+
+        frame1 = transform(frame1_rgb)
+        frame2 = transform(frame2_rgb)
+        frame_diff_t = transform(frame_diff_rgb)
 
         # Preprocess the frames
-        input_tensor = torch.cat([frame2, frame_diff], dim=0).unsqueeze(0).to(device)
-        print(input_tensor.shape)
-
-        # Ensure input tensor has the correct shape
-        # print(f"Input tensor shape: {input_tensor.shape}")
+        input_tensor = torch.cat([frame2, frame_diff_t], dim=0).unsqueeze(0).to(device)
 
         # Perform inference
         with torch.no_grad():
             output = model(input_tensor)[0]  # Get the raw logits
 
         # Post-process the output
-        output = torch.sigmoid(output)  # Apply sigmoid to the output to get probabilities
-        segmentation_map = output[0].squeeze().cpu().numpy()
-        segmentation_map = (segmentation_map > 0.25).astype(np.uint8)  # Apply threshold to get binary map
-        segmentation_map = cv2.resize(segmentation_map, (width, height), interpolation=cv2.INTER_NEAREST)
-        # print(f"Segmentation map shape: {segmentation_map.shape}")
-        # print(f"Segmentation map unique values: {np.unique(segmentation_map)}")
-        # Find coordinates of the tennis ball
-        ball_coords = np.column_stack(np.where(segmentation_map == 1))
-        if ball_coords.size > 0:
-            center_x = np.mean(ball_coords[:, 1])
-            center_y = np.mean(ball_coords[:, 0])
-            coordinates.append([frame_number, 1, center_x, center_y])
-            # Draw a circle on the detected ball
-            cv2.circle(frame, (int(center_x), int(center_y)), 10, (0, 255, 0), 2)
+        prob = torch.sigmoid(output).squeeze().cpu().numpy().astype(np.float32)  # [H,W]
+        prob = cv2.resize(prob, (width, height), interpolation=cv2.INTER_LINEAR)
+
+        # Use blob-based CoH extraction
+        cands = extract_blob_candidates_coh(prob, thr=thr)
+        det, cx, cy, conf = select_with_gating_maxconf(cands, pred_xy=None, gate_px=None)
+
+        # Write the frame corresponding to the detection (frames_buffer[1])
+        frame_out = frames_buffer[1].copy()
+        
+        # Apply overlay if enabled
+        if overlay:
+            heatmap_normalized = cv2.normalize(prob, None, 0, 255, cv2.NORM_MINMAX)
+            heatmap_normalized = heatmap_normalized.astype(np.uint8)
+            heatmap_colored = cv2.applyColorMap(heatmap_normalized, cv2.COLORMAP_JET)
+            frame_out = cv2.addWeighted(frame_out, 0.6, heatmap_colored, 0.4, 0)
+        
+        if det:
+            coordinates.append([frame_number, 1, cx, cy, conf])
+            cv2.circle(frame_out, (int(cx), int(cy)), 10, (0, 255, 0), 2)
         else:
-            coordinates.append([frame_number,0,0,0])
+            coordinates.append([frame_number, 0, 0, 0, 0])
 
         # Write the frame to the output video
-        out.write(frame)
+        out.write(frame_out)
         frame_number += 1
+
         # Optional: Display the frame
-        cv2.imshow("Frame", frame)
+        cv2.imshow("Frame", frame_out)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        
+
     # Release everything if job is finished
     cap.release()
     out.release()
     cv2.destroyAllWindows()
 
     # Save coordinates to CSV file
-    coordinates_df = pd.DataFrame(coordinates, columns=["frames","detected", "x", "y"])
+    coordinates_df = pd.DataFrame(coordinates, columns=["frame_number", "detected", "x", "y", "confidence"])
     coordinates_df.to_csv(output_csv_path, index=False)

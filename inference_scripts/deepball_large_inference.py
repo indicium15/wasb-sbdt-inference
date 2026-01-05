@@ -19,7 +19,7 @@ def predict_ball_position(prev_positions, width, height):
     predicted_position = np.clip(predicted_position, [0, 0], [width, height])
     return predicted_position
 
-def run_inference(weights, input_path, overlay=False):
+def run_inference(weights, input_path, overlay=False, thr=0.5, show=False):
     # Configuration parameters
     config = {
         "name": "deepball",
@@ -80,6 +80,10 @@ def run_inference(weights, input_path, overlay=False):
     coordinates = []
     frame_number = 0
     prev_positions = []
+    # Track recent positions for motion filtering (to reject static objects like court lines)
+    recent_positions = []  # Store last 10 positions
+    static_threshold_px = 5.0  # If position changes less than this, consider it static
+    static_frame_count = 0  # Count consecutive frames with minimal movement
 
     while True:
         ret, frame = cap.read()
@@ -103,7 +107,7 @@ def run_inference(weights, input_path, overlay=False):
         output = torch.sigmoid(output)  # Apply sigmoid to the output to get probabilities
         heatmap = output[1].squeeze().cpu().numpy()
         heatmap = cv2.resize(heatmap, (width, height), interpolation=cv2.INTER_LINEAR)
-        heatmap = (heatmap > 0.5).astype(np.float32) * heatmap
+        heatmap = (heatmap > thr).astype(np.float32) * heatmap
 
         if overlay:
             heatmap_normalized_visualization = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX)
@@ -137,10 +141,39 @@ def run_inference(weights, input_path, overlay=False):
                 # Select the blob with the highest confidence if no prediction is available
                 blob_centers.sort(key=lambda x: x[2], reverse=True)
                 center_x, center_y, confidence = blob_centers[0]
-            detected = True
-            prev_positions.append(np.array([center_x, center_y]))
-            if len(prev_positions) > 3:
-                prev_positions.pop(0)
+            
+            # Motion-based filtering: reject static detections (like court lines)
+            current_pos = np.array([center_x, center_y])
+            is_static = False
+            
+            if len(recent_positions) > 0:
+                # Check if current position is very close to recent positions
+                last_pos = recent_positions[-1]
+                distance = np.sqrt(np.sum((current_pos - last_pos) ** 2))
+                
+                if distance < static_threshold_px:
+                    static_frame_count += 1
+                    # If position hasn't moved much for 15+ consecutive frames, it's likely static
+                    if static_frame_count >= 15:
+                        is_static = True
+                else:
+                    static_frame_count = 0
+            
+            # Only accept detection if it's not static
+            if not is_static:
+                detected = True
+                prev_positions.append(current_pos.copy())
+                if len(prev_positions) > 3:
+                    prev_positions.pop(0)
+                
+                # Update recent positions for motion filtering
+                recent_positions.append(current_pos.copy())
+                if len(recent_positions) > 10:
+                    recent_positions.pop(0)
+            else:
+                detected = False
+                # Reset static counter if we skip this detection
+                static_frame_count = max(0, static_frame_count - 1)
 
         # Draw a circle on the detected ball
         if detected:
@@ -156,13 +189,15 @@ def run_inference(weights, input_path, overlay=False):
         else:
             coordinates.append([frame_number, 0, 0, 0, 0])
 
-        if overlay:
-            cv2.imshow("Frame", overlayed_frame)
-        else:
-            cv2.imshow("Frame", frame)
+        # Only display frames if show is enabled
+        if show:
+            if overlay:
+                cv2.imshow("Frame", overlayed_frame)
+            else:
+                cv2.imshow("Frame", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
         frame_number += 1  
 
